@@ -1,0 +1,240 @@
+---
+title: "Pengaruh Popularitas Film terhadap Total Pendapatan Rental"
+author: "Finalia Salwa Zakiyah Kista | M0725065"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+<style>
+body{
+    font-family: sans-serif;
+    background-color: #f5f7fa;
+    color: #222222;
+}
+
+.title {
+    text-align: center;
+    font-weight: bold;
+    border-bottom: 2px solid;
+    padding-bottom: 5px;
+}
+
+h1{
+    color: #123499;
+    text-align: left;
+}
+
+h2{
+    color: #123499;
+    font-size: 11;
+}
+
+
+table{
+    width: 100%;
+}
+
+code{
+    background-color: #eeeeee;
+    color: #c62828;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Pendahuluan
+Pada laporan ini dilakukan analisis untuk mengetahui film dengan pendapatan 
+tertinggi berdasarkan transaksi rental pelanggan. Pengambilan data dilakukan 
+menggunakan SQL melalui koneksi database MySQL, kemudian data dianalisis dan 
+divisualisasikan menggunakan bahasa R dengan bantuan package ggplot2. Selain 
+itu, laporan disusun dalam format HTML menggunakan RMarkdown dengan tambahan 
+kustomisasi CSS dan persamaan matematis menggunakan LaTeX agar tampilan laporan menjadi lebih menarik dan terstruktur.
+
+Database Sakila merupakan database contoh yang disediakan oleh MySQL
+untuk simulasi sistem rental film. Dataset ini memiliki berbagai tabel
+yang saling berelasi seperti film, customer, rental, payment, dan category.
+
+Analisis dilakukan menggunakan:
+
+1. SQL untuk pengambilan data
+2. R untuk analisis data
+3. ggplot2 untuk visualisasi data
+
+# Insight Analisis
+Insight yang diambil pada analisis ini adalah **mengetahui hubungan antara popularitas film dengan total pendapatan rental** pada database Sakila. Popularitas film diukur berdasarkan jumlah transaksi rental, sedangkan pendapatan dihitung dari total pembayaran pelanggan terhadap film tersebut.
+
+Melalui analisis ini dapat diketahui film-film yang paling diminati pelanggan dan kontribusinya terhadap pendapatan rental. Hasil analisis dapat digunakan sebagai bahan evaluasi bisnis maupun strategi promosi film.
+
+# Penggunaan library
+```{r loadlibrary}
+library(DBI)
+library(RMySQL)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(odbc)
+```
+
+# Koneksi Database
+```{r}
+con = dbConnect(odbc(),
+          Driver = "MySQL ODBC 8.0 ANSI Driver",
+          Server = "127.0.0.1",
+          UID = "root",
+          PWD = "Finalia1737",
+          Port = 3306,
+          Database = "sakila")
+
+dbListTables(con)
+```
+
+# Pengambilan Data
+```{r}
+query = "SELECT f.title AS judul_film,
+    COUNT(r.rental_id) AS jumlah_rental,
+    SUM(p.amount) AS total_pendapatan
+FROM film f
+JOIN inventory i
+    ON f.film_id = i.film_id
+JOIN rental r
+    ON i.inventory_id = r.inventory_id
+JOIN payment p
+    ON r.rental_id = p.rental_id
+GROUP BY judul_film
+ORDER BY total_pendapatan DESC
+LIMIT 10;
+"
+```
+
+## Top 10 Film dengan Pendapatan Tertinggi
+```{r}
+film_income <- dbGetQuery(con, query)
+
+film_income
+```
+
+# Menampilkan Tabel Hasil Analisis
+```{r}
+kable(
+  film_income,
+  caption = "Top 10 Film dengan Pendapatan Tertinggi"
+)
+```
+
+# Visualisasi Data
+
+## Bar Chart Pendapatan Film
+```{r}
+ggplot(film_income,
+       aes(x = reorder(judul_film, total_pendapatan),
+           y = total_pendapatan)) +
+  geom_bar(
+    stat = "identity",
+    fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Top 10 Film dengan Pendapatan Tertinggi",
+    x = "Judul Film",
+    y = "Total Pendapatan") +
+  theme_minimal()
+```
+
+## Line Chart Proporsi Pendapatan Film
+```{r}
+ggplot(film_income,
+       aes(x = reorder(judul_film, jumlah_rental),
+           y = jumlah_rental,
+           group = 1)) +
+  geom_line(color = "darkblue") +
+  geom_point(
+    color = "skyblue",
+    size = 3) +
+  coord_flip() +
+  labs(
+    title = "Jumlah Rental Setiap Film",
+    x = "Judul Film",
+    y = "Jumlah Rental") +
+  theme_minimal()
+```
+
+
+# Analisis Tambahan
+
+## Menghitung Rata-rata Pendapatan
+```{r}
+mean(film_income$total_pendapatan)
+```
+
+## Menampilkan Film dengan Pendapatan Tertinggi
+```{r}
+film_tertinggi <- film_income %>%
+  slice_max(total_pendapatan, n = 1)
+
+film_tertinggi
+```
+
+# Persamaan Matematis Menggunakan LaTeX
+Persamaan pendapatan total:
+$$
+Total\ Pendapatan = \sum_{i=1}^{n} payment_i
+$$
+
+Keterangan:
+
+- $payment_i$ adalah pembayaran ke-$i$
+- $n$ adalah jumlah transaksi rental
+
+Persamaan rata-rata pendapatan:
+$$
+\bar{x} = \frac{\sum x_i}{n}
+$$
+
+Keterangan:
+
+- $\bar{x}$ = rata-rata pendapatan
+- $x_i$ = data pendapatan
+- $n$ = jumlah data
+
+# Interpretasi Hasil Analisis
+Berdasarkan hasil analisis, diperoleh informasi bahwa terdapat beberapa
+film yang memiliki pendapatan jauh lebih tinggi dibandingkan film lainnya.
+Film dengan pendapatan tertinggi menunjukkan bahwa film tersebut memiliki
+tingkat penyewaan yang tinggi oleh pelanggan. Semakin banyak transaksi
+rental yang terjadi, maka total pembayaran yang diterima juga semakin besar.
+
+Visualisasi bar chart memperlihatkan perbedaan pendapatan antar film
+secara jelas. Film pada posisi teratas dapat dianggap sebagai film
+yang paling populer dalam database Sakila. Bar chart membantu dalam 
+mengidentifikasi film yang paling menguntungkan sehingga dapat digunakan 
+sebagai bahan pertimbangan dalam strategi bisnis, seperti promosi film populer 
+atau penambahan stok inventory film tertentu.
+
+Visualisasi line chart dapat dilihat pola dari film-film dengan jumlah rental
+yang lebih tinggi dibandingkan film lainnya. Titik-titik pada garis menunjukkan
+jumlah transaksi rental yang terjadi pada setiap film. Semakin tinggi posisi 
+titik pada grafik, maka semakin besar jumlah penyewaan film tersebut. 
+Line chart ini memberikan gambaran mengenai tingkat popularitas film 
+berdasarkan frekuensi rental. Informasi tersebut dapat digunakan untuk 
+mengetahui film yang paling diminati pelanggan dan membantu pengambilan 
+keputusan dalam pengelolaan bisnis rental film.
+
+# Kesimpulan
+Berdasarkan analisis data Sakila menggunakan SQL dan R, dapat disimpulkan bahwa:
+
+1. Beberapa film memiliki pendapatan yang jauh lebih tinggi dibanding film lain.
+2. Tingginya pendapatan dipengaruhi oleh jumlah transaksi rental.
+3. SQL sangat membantu dalam proses pengambilan data relasional.
+4. Visualisasi data mempermudah interpretasi hasil analisis.
+
+# Menutup Koneksi Database
+```{r}
+dbDisconnect(con)
+```
